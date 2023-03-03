@@ -2,10 +2,11 @@
 
 pragma solidity ^0.8.17;
 
-contract DataRepository {
+contract Parchment {
     struct Data {
         string hash; // 数据明文的哈希值
         string kcph; // 使用 Pa 加密的 k 和 addr
+        bool isPlaintext; // 是否是明文存储
         bool valid; // 标记位，用于判断数据是否有效
     }
 
@@ -57,6 +58,7 @@ contract DataRepository {
     error NotExists(address owner, string hash); // 数据不存在
     error NotAuthorized(address visitor, address owner, string hash); // 未被授权数据
     error NotApplied(address visitor, address owner, string hash); // 未申请数据
+    error IsPlaintext(address owner, string hash); // 数据明文存储
 
     // 保证每个用户相同的数据只能上传一次
     modifier uniqueUpload(string calldata _hash) {
@@ -85,6 +87,14 @@ contract DataRepository {
         _;
     }
 
+    // 保证数据是加密存储形式
+    modifier dataNotPlaintext(address _owner, string calldata _hash) {
+        if (dataRecord[_owner][_hash].isPlaintext) {
+            revert IsPlaintext(_owner, _hash);
+        }
+        _;
+    }
+
     // 保证数据访问者已提交授权申请
     modifier dataApplied(
         address _owner,
@@ -101,14 +111,17 @@ contract DataRepository {
      * 上传数据
      * _hash: 数据明文的哈希值
      * _kcph: 使用 Pa 加密的 k 和 addr
+     * _isPlaintext: 是否是明文存储
      */
-    function uploadData(string calldata _hash, string calldata _kcph)
-        external
-        uniqueUpload(_hash)
-    {
+    function uploadData(
+        string calldata _hash,
+        string calldata _kcph,
+        bool _isPlaintext
+    ) external uniqueUpload(_hash) {
         dataRecord[msg.sender][_hash] = Data({
             hash: _hash,
             kcph: _kcph,
+            isPlaintext: _isPlaintext,
             valid: true
         });
         dataList[msg.sender].push(_hash);
@@ -126,11 +139,16 @@ contract DataRepository {
         view
         dataExists(_owner, _hash)
         ownerOrAuthorized(_owner, _hash)
-        returns (string memory kcph, string memory hash)
+        returns (
+            string memory kcph,
+            string memory hash,
+            bool isPlaintext
+        )
     {
         Data memory data = dataRecord[_owner][_hash];
         hash = _hash;
-        if (msg.sender == _owner) {
+        isPlaintext = data.isPlaintext;
+        if (msg.sender == _owner || isPlaintext) {
             kcph = data.kcph;
         } else {
             kcph = authzRecord[_owner][_hash][msg.sender].rkcph;
@@ -147,7 +165,7 @@ contract DataRepository {
         address _owner,
         string calldata _hash,
         string calldata _pk
-    ) external dataExists(_owner, _hash) {
+    ) external dataExists(_owner, _hash) dataNotPlaintext(_owner, _hash) {
         authzApplyRecord[_owner][_hash][msg.sender] = AuthzApplyInfo({
             pk: _pk,
             valid: true
