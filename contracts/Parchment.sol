@@ -17,6 +17,7 @@ contract Parchment {
 
     struct AuthzApplyInfo {
         string pk; // 申请者公钥
+        uint256 time; // 申请时间
         bool valid; // 标记位，用于判断申请信息是否有效
     }
 
@@ -168,6 +169,7 @@ contract Parchment {
     ) external dataExists(_owner, _hash) dataNotPlaintext(_owner, _hash) {
         authzApplyRecord[_owner][_hash][msg.sender] = AuthzApplyInfo({
             pk: _pk,
+            time: block.timestamp,
             valid: true
         });
         authzApplyList[_owner][_hash].push(msg.sender);
