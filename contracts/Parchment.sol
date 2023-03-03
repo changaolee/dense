@@ -81,6 +81,7 @@ contract Parchment {
     modifier ownerOrAuthorized(address _owner, string calldata _hash) {
         if (
             msg.sender != _owner &&
+            !dataRecord[_owner][_hash].isPlaintext &&
             !authzRecord[_owner][_hash][msg.sender].valid
         ) {
             revert NotAuthorized(msg.sender, _owner, _hash);
