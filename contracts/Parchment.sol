@@ -15,9 +15,17 @@ contract Parchment {
         bool valid; // 标记位，用于判断重加密数据是否有效
     }
 
+    enum AuthzStatus {
+        WAITING,
+        APPROVE,
+        CANCELLED
+    }
+
     struct AuthzApplyInfo {
+        address walletAddress; // 申请者钱包地址
         string pk; // 申请者公钥
         uint256 time; // 申请时间
+        AuthzStatus status; // 授权状态
         bool valid; // 标记位，用于判断申请信息是否有效
     }
 
@@ -169,8 +177,10 @@ contract Parchment {
         string calldata _pk
     ) external dataExists(_owner, _hash) dataNotPlaintext(_owner, _hash) {
         authzApplyRecord[_owner][_hash][msg.sender] = AuthzApplyInfo({
+            walletAddress: msg.sender,
             pk: _pk,
             time: block.timestamp,
+            status: AuthzStatus.WAITING,
             valid: true
         });
         authzApplyList[_owner][_hash].push(msg.sender);
